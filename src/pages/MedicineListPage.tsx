@@ -14,24 +14,42 @@ import {
   Button,
   Stack,
   Paper,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import {
   mockMedicines,
   daysUntilExpiry,
+  type Medicine,
   type MedicineCategory,
 } from '../shared/types/medicine';
 
 export default function MedicineListPage() {
+  const [medicines, setMedicines] = useState<Medicine[]>(mockMedicines);
   const [category, setCategory] = useState<'all' | MedicineCategory>('all');
   const [search, setSearch] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<Medicine | null>(null);
 
   const filtered = useMemo(() => {
-    return mockMedicines
+    return medicines
       .filter((m) => category === 'all' || m.category === category)
       .filter((m) => m.name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => daysUntilExpiry(a.expiryDate) - daysUntilExpiry(b.expiryDate));
-  }, [category, search]);
+  }, [medicines, category, search]);
+
+  const handleConfirmDelete = () => {
+    if (!pendingDelete) return;
+    setMedicines((prev) => prev.filter((m) => m.id !== pendingDelete.id));
+    setPendingDelete(null);
+  };
 
   return (
     <Box>
@@ -79,10 +97,11 @@ export default function MedicineListPage() {
               <TableCell>Название</TableCell>
               <TableCell>Дозировка</TableCell>
               <TableCell>Форма</TableCell>
-              <TableCell align="right">Емкость упаковки</TableCell>
-              <TableCell align="right">Кол-во</TableCell>
+              <TableCell align="right">Кол-во в упак.</TableCell>
+              <TableCell align="right">В наличии</TableCell>
               <TableCell>Срок годности</TableCell>
               <TableCell>Категория</TableCell>
+              <TableCell align="right">Действия</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -116,12 +135,32 @@ export default function MedicineListPage() {
                   <TableCell>
                     {m.category === 'human' ? 'Для людей' : 'Для животных'}
                   </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="Редактировать">
+                      <IconButton
+                        size="small"
+                        component={Link}
+                        to={`/edit/${m.id}`}
+                      >
+                        <EditIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Удалить">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => setPendingDelete(m)}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
                 </TableRow>
               );
             })}
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={8} align="center">
                   Ничего не найдено
                 </TableCell>
               </TableRow>
@@ -129,6 +168,23 @@ export default function MedicineListPage() {
           </TableBody>
         </Table>
       </Paper>
+
+      {/* Диалог подтверждения удаления */}
+      <Dialog open={pendingDelete !== null} onClose={() => setPendingDelete(null)}>
+        <DialogTitle>Удалить лекарство?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {pendingDelete &&
+              `«${pendingDelete.name}» будет удалено из аптечки. Действие можно отменить только до подтверждения.`}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPendingDelete(null)}>Отмена</Button>
+          <Button color="error" variant="contained" onClick={handleConfirmDelete}>
+            Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
